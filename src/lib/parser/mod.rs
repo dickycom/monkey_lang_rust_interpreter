@@ -6,6 +6,17 @@ use crate::{ast, lexer, token};
 type PrefixParseFn = fn(&mut Parser) -> Option<ast::Expression>;
 type InfixParseFn = fn(&mut Parser, ast::Expression) -> Option<ast::Expression>;
 
+#[derive(PartialEq, PartialOrd)]
+pub enum Precedence {
+    Lowest,
+    Equals,      // ==
+    LessGreater, // > or <
+    Sum,         // +
+    Product,     // *
+    Prefix,      // -X or !X
+    Call,        // myFunction(X)
+}
+
 pub struct Parser {
     lexer: lexer::Lexer,
     current_token: token::Token,
@@ -19,7 +30,36 @@ impl Parser {
     pub fn new(mut lexer: lexer::Lexer) -> Parser {
         let current_token = lexer.next_token();
         let peek_token = lexer.next_token();
-        Parser { lexer, current_token, peek_token, errors: Vec::new(), prefix_parse_fns: HashMap::new(), infix_parse_fns: HashMap::new() }
+        let mut p = Parser { lexer, current_token, peek_token, errors: Vec::new(), prefix_parse_fns: HashMap::new(), infix_parse_fns: HashMap::new() };
+        p.register_prefix(token::TokenType::IDENT, Parser::parse_identifier );
+        p.register_prefix(token::TokenType::INT, Parser::parse_integer_literal );
+        return p;
+    }
+
+    pub fn parse_identifier(&mut self) -> Option<ast::Expression> {
+        let identifier = ast::Identifier {
+            token: self.current_token.clone(),
+            value: self.current_token.literal.clone(),
+        };
+        Some(ast::Expression::Identifier(identifier))
+
+    }
+
+    pub fn parse_integer_literal(&mut self) -> Option<ast::Expression> {
+        let current_token = self.current_token.clone();
+        let value = self.current_token.literal.parse::<i64>();
+        match value {
+            Ok(val) => {
+                let integer_literal = ast::IntegerLiteral { token: current_token.clone(), value: val };
+                Some(ast::Expression::IntegerLiteral(integer_literal))
+            },
+            Err(..) => {
+                let error = format!("could not parse {} as integer", self.current_token.literal);
+                self.errors.push(error);
+                None
+            }
+        }
+
     }
 
     pub fn next_token(&mut self) {
@@ -30,8 +70,27 @@ impl Parser {
         match self.current_token.token_type {
             token::TokenType::LET => self.parse_let_statement(),
             token::TokenType::RETURN => self.parse_return_statement(),
-            _ => None
+            _ => self.parse_expression_statement(),
         }
+    }
+
+    pub fn parse_expression_statement(&mut self) -> Option<ast::Statement> {
+        let current_token = self.current_token.clone();
+
+        let expression = self.parse_expression(Precedence::Lowest).unwrap();
+
+        if self.peek_token_is(token::TokenType::SEMICOLON) {
+            self.next_token();
+        }
+
+        let statement = ast::ExpressionStatement { token: current_token.clone(), expression };
+        return Some(ast::Statement::ExpressionStatement(statement));
+
+    }
+
+    pub fn parse_expression(&mut self, _precedence: Precedence) -> Option<Option<ast::Expression>> {
+        let prefix = self.prefix_parse_fns.get(&self.current_token.token_type)?; 
+        return Some(prefix(self));
     }
 
     pub fn errors(&self) -> Vec<String> {
@@ -60,7 +119,7 @@ impl Parser {
             self.next_token();
         };
 
-        let expression = ast::Expression {};
+        let expression = None;
         let statement = ast::LetStatement { token: current_token.clone(), name, value: expression };
 
         Some(ast::Statement::LetStatement(statement))
@@ -74,7 +133,7 @@ impl Parser {
             self.next_token();
         };
 
-        let statement = ast::ReturnStatement { token: current_token.clone(), return_value: ast::Expression {} };
+        let statement = ast::ReturnStatement { token: current_token.clone(), return_value: None };
         return Some(ast::Statement::ReturnStatement(statement));
     }
 

@@ -18,14 +18,14 @@ fn test_to_string() {
                     },
                     value: String::from("myVar"),
                 },
-                value: Expression {},
+                value: None,
             }),
             Statement::ReturnStatement(ReturnStatement {
                 token: Token {
                     token_type: TokenType::RETURN,
                     literal: String::from("return"),
                 },
-                return_value: Expression {},
+                return_value: None,
             }),
         ],
     };

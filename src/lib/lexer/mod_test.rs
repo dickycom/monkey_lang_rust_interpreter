@@ -2,7 +2,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::token::{TokenType};
+    use crate::token::TokenType;
 
     #[test]
     fn test_next_token() {

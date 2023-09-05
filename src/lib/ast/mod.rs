@@ -17,7 +17,84 @@ pub trait ExpressionNode: Node {
 }
 
 #[derive(Debug)]
-pub struct Expression {}
+pub enum Expression {
+    Identifier(Identifier),
+    IntegerLiteral(IntegerLiteral),
+    PrefixExpression(PrefixExpression),
+    InfixExpression(InfixExpression),
+    Boolean(Boolean),
+    // Add other variants similarly
+}
+
+#[derive(Debug)]
+pub struct IntegerLiteral {
+    pub token: Token,
+    pub value: i64,
+}
+
+impl Node for IntegerLiteral {
+    fn token_literal(&self) -> String {
+        return self.token.literal.clone();
+    }
+    fn to_string(&self) -> String {
+        return self.value.to_string();
+    }
+}
+
+#[derive(Debug)]
+pub struct PrefixExpression {
+    pub token: Token,
+    pub operator: String,
+    pub right: Box<Expression>,
+}
+
+impl Node for PrefixExpression {
+    fn token_literal(&self) -> String {
+        return self.token.literal.clone();
+    }
+    fn to_string(&self) -> String {
+        let mut out = String::new();
+        out.push_str(&self.operator);
+        out.push_str(&self.right.to_string());
+        out
+    }
+}
+
+#[derive(Debug)]
+pub struct InfixExpression {
+    pub token: Token,
+    pub left: Box<Expression>,
+    pub operator: String,
+    pub right: Box<Expression>,
+}
+
+impl Node for InfixExpression {
+    fn token_literal(&self) -> String {
+        return self.token.literal.clone();
+    }
+    fn to_string(&self) -> String {
+        let mut out = String::new();
+        out.push_str(&self.left.to_string());
+        out.push_str(&self.operator);
+        out.push_str(&self.right.to_string());
+        out
+    }
+}
+
+#[derive(Debug)]
+pub struct Boolean {
+    pub token: Token,
+    pub value: bool,
+}
+
+impl Node for Boolean {
+    fn token_literal(&self) -> String {
+        return self.token.literal.clone();
+    }
+    fn to_string(&self) -> String {
+        return self.value.to_string();
+    }
+}
 
 impl Node for Expression {
     fn token_literal(&self) -> String {
@@ -76,14 +153,13 @@ impl Node for Program {
         }
         out
     }
-
 }
 
 #[derive(Debug)]
 pub struct LetStatement {
     pub token: Token,
     pub name: Identifier,
-    pub value: Expression,
+    pub value: Option<Expression>,
 }
 
 impl Node for LetStatement {
@@ -92,11 +168,18 @@ impl Node for LetStatement {
     }
     fn to_string(&self) -> String {
         let mut out = String::new();
+
         out.push_str(&self.token_literal());
         out.push_str(" ");
         out.push_str(&self.name.to_string());
         out.push_str(" = ");
-        out.push_str(&self.value.to_string());
+
+        if let Some(value) = &self.value {
+            out.push_str(&value.to_string());
+        } else {
+            out.push_str("");
+        }
+
         out.push_str(";");
         out
     }
@@ -105,7 +188,7 @@ impl Node for LetStatement {
 #[derive(Debug)]
 pub struct ReturnStatement {
     pub token: token::Token,
-    pub return_value: Expression,
+    pub return_value: Option<Expression>,
 }
 
 impl Node for ReturnStatement {
@@ -116,7 +199,12 @@ impl Node for ReturnStatement {
         let mut out = String::new();
         out.push_str(&self.token_literal());
         out.push_str(" ");
-        out.push_str(&self.return_value.to_string());
+        if let Some(return_value) = &self.return_value {
+            out.push_str(&return_value.to_string());
+        } else {
+            out.push_str("");
+        }
+
         out.push_str(";");
         out
     }
@@ -124,8 +212,8 @@ impl Node for ReturnStatement {
 
 #[derive(Debug)]
 pub struct ExpressionStatement {
-    token: Token,
-    expression: Expression
+    pub token: Token,
+    pub expression: Option<Expression>,
 }
 
 impl Node for ExpressionStatement {
@@ -133,10 +221,12 @@ impl Node for ExpressionStatement {
         return self.token.literal.clone();
     }
     fn to_string(&self) -> String {
-        return self.expression.to_string();
+        match &self.expression {
+            Some(expression) => expression.to_string(),
+            None => String::from("expression not_found"),
+        }
     }
 }
-
 
 #[derive(Debug)]
 pub struct Identifier {
@@ -146,10 +236,9 @@ pub struct Identifier {
 
 impl Node for Identifier {
     fn token_literal(&self) -> String {
-        return self.token.literal.clone();
+        self.token.literal.clone()
     }
     fn to_string(&self) -> String {
-        return self.value.clone();
+        self.value.clone()
     }
 }
-
